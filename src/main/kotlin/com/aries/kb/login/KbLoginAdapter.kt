@@ -7,9 +7,14 @@ import com.aries.extension.util.PropertyUtil
 import com.aries.kb.api.KbApiController
 import com.aries.kb.util.OAMInsensitiveMap
 import com.aries.kb.util.OAMUtil
+import com.aries.kb.util.SelfExpiringHashMap
 import javax.servlet.http.HttpServletRequest
 
 class KbLoginAdapter : SSOLoginHandler {
+    companion object {
+        val AUTH_KEYS = SelfExpiringHashMap<String, String>()
+    }
+
     override fun preHandle(request: HttpServletRequest): UserData? {
         val headerMap = OAMInsensitiveMap()
         OAMUtil.httpHeaderToMap(request, headerMap)
@@ -23,7 +28,7 @@ class KbLoginAdapter : SSOLoginHandler {
             return null
         }
 
-        val cachedAuthKey = KbApiController.AUTH_KEYS[userId + deviceId]
+        val cachedAuthKey = AUTH_KEYS[userId + deviceId]
 
         println("HTTP Request Headers: $userId, $deviceId, $authKey")
         println("Cached Key: $cachedAuthKey")
