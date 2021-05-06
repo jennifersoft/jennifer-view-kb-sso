@@ -4,7 +4,6 @@ import com.aries.extension.data.UserData
 import com.aries.extension.handler.SSOLoginHandler
 import com.aries.extension.util.LogUtil
 import com.aries.extension.util.PropertyUtil
-import com.aries.kb.api.KbApiController
 import com.aries.kb.util.OAMInsensitiveMap
 import com.aries.kb.util.OAMUtil
 import com.aries.kb.util.SelfExpiringHashMap
