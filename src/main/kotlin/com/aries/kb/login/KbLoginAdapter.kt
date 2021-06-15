@@ -11,35 +11,38 @@ import javax.servlet.http.HttpServletRequest
 
 class KbLoginAdapter : SSOLoginHandler {
     companion object {
+        const val ADAPTER_ID = "kb_login"
         val AUTH_KEYS = SelfExpiringHashMap<String, String>()
     }
 
     override fun preHandle(request: HttpServletRequest): UserData? {
+        val isDebug = PropertyUtil.getValue(ADAPTER_ID, "KB_DEBUG_LOG", "true") == "true"
+
         val headerMap = OAMInsensitiveMap()
         OAMUtil.httpHeaderToMap(request, headerMap)
 
-        val userId: String = headerMap.get("KB_USER_ID")
-        val deviceId: String = headerMap.get("KB_DEVICE_ID")
-        val authKey: String = headerMap.get("KB_AUTH_KEY")
+        if (isDebug)
+            LogUtil.info("HEADER KEYS \"${headerMap.keys}\"")
+
+        val userId: String? = headerMap.get("KB_USER_ID")
+        val deviceId: String? = headerMap.get("KB_DEVICE_ID")
+        val authKey: String? = headerMap.get("KB_AUTH_KEY")
 
         if (userId == null || deviceId == null || authKey == null) {
-            LogUtil.error("HTTP request attribute value required for authentication does not exist")
+            LogUtil.error("NOT_EXIST_HEADERS \"$userId:$deviceId (${request.remoteAddr})\"")
             return null
         }
 
         val cachedAuthKey = AUTH_KEYS[userId + deviceId]
-
-        println("HTTP Request Headers: $userId, $deviceId, $authKey")
-        println("Cached Key: $cachedAuthKey")
-
         if (authKey != cachedAuthKey) {
-            LogUtil.error("The authentication key is not valid")
+            LogUtil.error("INVALID_KEY \"$userId:$deviceId (${request.remoteAddr})\"")
             return null
         }
 
+        LogUtil.info("LOGIN \"$userId:$deviceId (${request.remoteAddr})\"")
         return UserData(
-            PropertyUtil.getValue("kb_login", "KB_JENNIFER_ID", "guest"),
-            PropertyUtil.getValue("kb_login", "KB_JENNIFER_PASSWORD", "guest")
+            PropertyUtil.getValue(ADAPTER_ID, "KB_JENNIFER_ID", "guest"),
+            PropertyUtil.getValue(ADAPTER_ID, "KB_JENNIFER_PASSWORD", "guest")
         )
     }
 }
