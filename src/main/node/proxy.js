@@ -56,7 +56,6 @@ http.createServer(onRequest).listen(PROXY_PORT);
 console.log('Listening on port ' + PROXY_PORT);
 
 // [테스트 하는 방법]
-// 1. 제니퍼 플러그인 API 호출
-// -> http://localhost:7900/plugin/kbapi/authkey?user_id=12345&device_id=67890&token=6gCRegQCukG
+// 1. 로컬 제니퍼에 KB 관련 플러그인과 어댑터가 설정되어 있어야 함
 // 2. 응답 값을 프록시 auth_key로 넘기기
 // -> http://localhost:3000/?user_id=12345&device_id=67890&auth_key=Twc256uN9N4QrdCYHOoo1w==
