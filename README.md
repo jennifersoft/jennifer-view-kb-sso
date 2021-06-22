@@ -23,9 +23,10 @@
  2. 추가 버튼을 누르고, 종류는 SSO를 선택
  3. ID는 kb_login로 설정
  4. 경로에 파일선택을 해서 업로드 하지 말고, 절대 경로를 입력해야 함 (dist/kb-sso_jennifer-1.0.0.jar)
- 5. 테이블에 설정이 추가되면, 해당 설정 로우를 선택하고, 옵션을 클릭
- 6. KB_JENNIFER_ID 옵션 추가 (기본값은 guest, 인증 성공시 제니퍼에 로그인하는 유저 아이디이며 제니퍼에 미리 생성되어 있어야 함)
- 7. KB_JENNIFER_PASSWORD 옵션 추가 (기본값은 guest, 위와 동일)
+ 5. 클래스 란에는 com.aries.kb.login.KbLoginAdapter를 입력
+ 6. 테이블에 설정이 추가되면, 해당 설정 로우를 선택하고, 옵션을 클릭
+ 7. KB_JENNIFER_ID 옵션 추가 (기본값은 guest, 인증 성공시 제니퍼에 로그인하는 유저 아이디이며 제니퍼에 미리 생성되어 있어야 함)
+ 8. KB_JENNIFER_PASSWORD 옵션 추가 (기본값은 guest, 위와 동일)
 
 ### URL로 제니퍼 로그인하기
 
