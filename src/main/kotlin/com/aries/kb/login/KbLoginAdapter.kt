@@ -4,8 +4,6 @@ import com.aries.extension.data.UserData
 import com.aries.extension.handler.SSOLoginHandler
 import com.aries.extension.util.LogUtil
 import com.aries.extension.util.PropertyUtil
-import com.aries.kb.util.OAMInsensitiveMap
-import com.aries.kb.util.OAMUtil
 import com.aries.kb.util.SelfExpiringHashMap
 import javax.servlet.http.HttpServletRequest
 
@@ -16,17 +14,9 @@ class KbLoginAdapter : SSOLoginHandler {
     }
 
     override fun preHandle(request: HttpServletRequest): UserData? {
-        val isDebug = PropertyUtil.getValue(ADAPTER_ID, "KB_DEBUG_LOG", "true") == "true"
-
-        val headerMap = OAMInsensitiveMap()
-        OAMUtil.httpHeaderToMap(request, headerMap)
-
-        if (isDebug)
-            LogUtil.info("HEADER KEYS \"${headerMap.keys}\"")
-
-        val userId: String? = headerMap.get("KB_USER_ID")
-        val deviceId: String? = headerMap.get("KB_DEVICE_ID")
-        val authKey: String? = headerMap.get("KB_AUTH_KEY")
+        val userId: String? = request.getParameter("user_id")
+        val deviceId: String? = request.getParameter("device_id")
+        val authKey: String? = request.getParameter("auth_key")
 
         if (userId == null || deviceId == null || authKey == null) {
             LogUtil.error("NOT_EXIST_HEADERS \"$userId:$deviceId (${request.remoteAddr})\"")
