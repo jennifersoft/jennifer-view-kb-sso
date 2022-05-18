@@ -23,8 +23,10 @@ class KbLoginAdapter : SSOLoginHandler {
             return null
         }
 
+        // query string으로 받으면 +가 공백으로 치환됨
+        val escapedAuthKey = authKey.replace(" ", "+")
         val cachedAuthKey = AUTH_KEYS[userId + deviceId]
-        if (authKey != cachedAuthKey) {
+        if (escapedAuthKey != cachedAuthKey) {
             LogUtil.error("INVALID_KEY \"$userId:$deviceId (${request.remoteAddr})\"")
             return null
         }

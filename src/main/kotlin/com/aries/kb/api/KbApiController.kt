@@ -17,12 +17,22 @@ class KbApiController @Autowired constructor() : PluginController() {
         @RequestParam(required = true) device_id: String
     ): ResponseEntity<String> {
         val key = user_id + device_id
-        val output = AES.encrypt(key,
-            PropertyUtil.getValue("kb_plugin", "KB_PASSWORD_SALT", "jennifer5"))
+        val authKey = KbLoginAdapter.AUTH_KEYS[key]
 
-        KbLoginAdapter.AUTH_KEYS.put(key, output,
-            PropertyUtil.getValue("kb_plugin", "KB_VALIDATE_TIMEOUT", "3000").toLong())
+        if (authKey == null) {
+            val output = AES.encrypt(
+                key,
+                PropertyUtil.getValue("kb_plugin", "KB_PASSWORD_SALT", "jennifer5")
+            )
 
-        return ResponseEntity(output, HttpStatus.OK)
+            KbLoginAdapter.AUTH_KEYS.put(
+                key, output,
+                PropertyUtil.getValue("kb_plugin", "KB_VALIDATE_TIMEOUT", "5000").toLong()
+            )
+
+            return ResponseEntity(output, HttpStatus.OK)
+        }
+
+        return ResponseEntity(authKey, HttpStatus.OK)
     }
 }

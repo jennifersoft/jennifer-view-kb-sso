@@ -32,4 +32,4 @@
 
  1. 일단 인증키 발급 API를 호출하여, 인증키를 발급 받는다.
  2. KB_VALIDATE_TIMEOUT 옵션에 저장된 시간 이전에 URL로 제니퍼에 로그인한다
- 3. http://${제니퍼5_호스트}/login/sso?user_id=${KB_사용자_아이디}&device_id=${KB_디바이스_아이디}&auth_key=${앞에서_생성한_인증_키}를 호출해야 한다.
+ 3. http://${제니퍼5_호스트}/login/sso?user_id=${KB_사용자_아이디}&device_id=${KB_디바이스_아이디}&auth_key=${플러그인_생성_인증키}를 호출해야 한다.
