@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import com.aries.kb.util.AES
+import java.net.URLEncoder;
 
 @RestController
 class KbApiController @Autowired constructor() : PluginController() {
@@ -20,10 +21,10 @@ class KbApiController @Autowired constructor() : PluginController() {
         val authKey = KbLoginAdapter.AUTH_KEYS[key]
 
         if (authKey == null) {
-            val output = AES.encrypt(
+            val output = URLEncoder.encode(AES.encrypt(
                 key,
                 PropertyUtil.getValue("kb_plugin", "KB_PASSWORD_SALT", "jennifer5")
-            )
+            ), "UTF-8")
 
             KbLoginAdapter.AUTH_KEYS.put(
                 key, output,

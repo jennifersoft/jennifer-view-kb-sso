@@ -26,6 +26,9 @@ package com.aries.kb.util;
 import static org.junit.Assert.*;
 import org.junit.Test;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+
 /**
  *
  * @author Pierantonio Cangianiello
@@ -109,4 +112,13 @@ public class SelfExpiringHashMapTests {
         assertEquals(map.get("777456"), Integer.valueOf(123));
     }
 
+    @Test
+    public void createAesKey() throws UnsupportedEncodingException {
+        String output = URLEncoder.encode(AES.encrypt(
+                "123456",
+                "jennifer5"
+        ), "UTF-8");
+
+        assertEquals(output, "24%2FI%2FPO82Ka%2BpQwxItzjiA%3D%3D");
+    }
 }

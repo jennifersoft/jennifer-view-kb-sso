@@ -5,6 +5,7 @@ import com.aries.extension.handler.SSOLoginHandler
 import com.aries.extension.util.LogUtil
 import com.aries.extension.util.PropertyUtil
 import com.aries.kb.util.SelfExpiringHashMap
+import java.net.URLDecoder
 import javax.servlet.http.HttpServletRequest
 
 class KbLoginAdapter : SSOLoginHandler {
@@ -23,11 +24,9 @@ class KbLoginAdapter : SSOLoginHandler {
             return null
         }
 
-        // query string으로 받으면 +가 공백으로 치환됨
-        val escapedAuthKey = authKey.replace(" ", "+")
-        val cachedAuthKey = AUTH_KEYS[userId + deviceId]
-        if (escapedAuthKey != cachedAuthKey) {
-            LogUtil.error("INVALID_KEY \"$userId:$deviceId (${request.remoteAddr})\"")
+        val cachedAuthKey = URLDecoder.decode(AUTH_KEYS[userId + deviceId], "UTF-8")
+        if (authKey != cachedAuthKey) {
+            LogUtil.error("INVALID_KEY \"$userId:$deviceId (${request.remoteAddr})\" \"$authKey=$cachedAuthKey\"")
             return null
         }
 
