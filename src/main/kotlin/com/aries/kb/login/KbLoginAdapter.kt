@@ -24,10 +24,16 @@ class KbLoginAdapter : SSOLoginHandler {
             return null
         }
 
-        val cachedAuthKey = URLDecoder.decode(AUTH_KEYS[userId + deviceId], "UTF-8")
-        if (authKey != cachedAuthKey) {
-            LogUtil.error("INVALID_KEY \"$userId:$deviceId (${request.remoteAddr})\" \"$authKey=$cachedAuthKey\"")
+        val mapKey = AUTH_KEYS[userId + deviceId]
+        if (mapKey == null) {
+            LogUtil.error("NOT_EXIST_KEY \"$userId:$deviceId (${request.remoteAddr})\"")
             return null
+        } else {
+            val cachedAuthKey = URLDecoder.decode(mapKey, "UTF-8")
+            if (authKey != cachedAuthKey) {
+                LogUtil.error("INVALID_KEY \"$userId:$deviceId (${request.remoteAddr})\" \"$authKey=$cachedAuthKey\"")
+                return null
+            }
         }
 
         LogUtil.info("LOGIN \"$userId:$deviceId (${request.remoteAddr})\"")

@@ -5,7 +5,7 @@
 
     <groupId>com.aries</groupId>
     <artifactId>kb-sso</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
     <packaging>jar</packaging>
 
     <name>kb-sso</name>
@@ -62,7 +62,7 @@
         <dependency>
             <groupId>com.aries</groupId>
             <artifactId>extension</artifactId>
-            <version>1.3.1</version>
+            <version>1.5.7</version>
         </dependency>
     </dependencies>
 
@@ -156,12 +156,12 @@
 
     <repositories>
         <repository>
-            <id>central</id>
-            <url>http://support.jennifersoft.com:8081/nexus/content/groups/public</url>
+            <id>datanucleus</id>
+            <url>https://www.datanucleus.org/downloads/maven2/</url>
         </repository>
         <repository>
-            <id>mvnrepository</id>
-            <url>http://repo1.maven.org/maven2</url>
+            <id>jennifer-thirdparty</id>
+            <url>https://maven.jennifersoft.com/nexus/content/repositories/thirdparty/</url>
         </repository>
     </repositories>
 </project>
