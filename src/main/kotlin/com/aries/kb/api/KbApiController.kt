@@ -31,8 +31,6 @@ class KbApiController @Autowired constructor() : PluginController() {
         val simpleDate = simpleDateFormat.format(date)
         val cutDate = simpleDate.substring(0, simpleDate.length - 1)
 
-        print("~!!!! simpleDate : $cutDate\n")
-
         val output = URLEncoder.encode(AES.encrypt(
             key,
             PropertyUtil.getValue("kb_plugin", "KB_PASSWORD_SALT", "jennifer5") + cutDate
