@@ -3,12 +3,17 @@ package com.aries.kb.api
 import com.aries.extension.starter.PluginController
 import com.aries.extension.util.PropertyUtil
 import com.aries.kb.login.KbLoginAdapter
+import com.aries.kb.util.AES
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.annotation.*
-import com.aries.kb.util.AES
-import java.net.URLEncoder;
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
+import java.net.URLEncoder
+import java.text.SimpleDateFormat
+import java.util.*
+
 
 @RestController
 class KbApiController @Autowired constructor() : PluginController() {
@@ -18,22 +23,23 @@ class KbApiController @Autowired constructor() : PluginController() {
         @RequestParam(required = true) device_id: String
     ): ResponseEntity<String> {
         val key = user_id + device_id
-        val authKey = KbLoginAdapter.AUTH_KEYS[key]
+//        val authKey = KbLoginAdapter.AUTH_KEYS[key]
 
-        if (authKey == null) {
-            val output = URLEncoder.encode(AES.encrypt(
-                key,
-                PropertyUtil.getValue("kb_plugin", "KB_PASSWORD_SALT", "jennifer5")
-            ), "UTF-8")
+        val dateFormat = "yyyyMMddHHmmss"
+        val date = Date(System.currentTimeMillis())
+        val simpleDateFormat = SimpleDateFormat(dateFormat)
+        val simpleDate = simpleDateFormat.format(date)
+        val cutDate = simpleDate.substring(0, simpleDate.length - 1)
 
-            KbLoginAdapter.AUTH_KEYS.put(
-                key, output,
-                PropertyUtil.getValue("kb_plugin", "KB_VALIDATE_TIMEOUT", "5000").toLong()
-            )
+        print("~!!!! simpleDate : $cutDate\n")
 
-            return ResponseEntity(output, HttpStatus.OK)
-        }
+        val output = URLEncoder.encode(AES.encrypt(
+            key,
+            PropertyUtil.getValue("kb_plugin", "KB_PASSWORD_SALT", "jennifer5") + cutDate
+        ), "UTF-8")
 
-        return ResponseEntity(authKey, HttpStatus.OK)
+        KbLoginAdapter.AUTH_KEYS.put(key, output, 10000)
+
+        return ResponseEntity(output, HttpStatus.OK)
     }
 }

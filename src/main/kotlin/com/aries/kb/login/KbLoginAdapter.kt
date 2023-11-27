@@ -38,7 +38,7 @@ class KbLoginAdapter : SSOLoginHandler {
 
         LogUtil.info("LOGIN \"$userId:$deviceId (${request.remoteAddr})\"")
         return UserData(
-            PropertyUtil.getValue(ADAPTER_ID, "KB_JENNIFER_ID", "guest"),
+            userId,
             PropertyUtil.getValue(ADAPTER_ID, "KB_JENNIFER_PASSWORD", "guest")
         )
     }
