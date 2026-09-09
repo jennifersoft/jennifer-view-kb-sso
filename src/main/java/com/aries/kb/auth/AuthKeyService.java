@@ -1,9 +1,14 @@
 package com.aries.kb.auth;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Clock;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,14 +23,15 @@ public final class AuthKeyService {
     private static final int TOKEN_BYTES = 32;
     private static final int TOKEN_LENGTH = 43;
     private static final int MAX_ID_LENGTH = 256;
-    private static final int MAX_GENERATION_ATTEMPTS = 8;
     private static final int DEFAULT_MAX_ACTIVE_TOKENS = 100_000;
     private static final long DEFAULT_TTL_MILLIS = 10_000L;
     private static final AuthKeyService SHARED = new AuthKeyService(DEFAULT_TTL_MILLIS);
 
     private final long ttlNanos;
     private final LongSupplier ticker;
+    private final Clock clock;
     private final SecureRandom secureRandom;
+    private final SecretKeySpec signingKey;
     private final int maxActiveTokens;
     private final Object lock = new Object();
     private final Map<ClientIdentity, TokenRecord> tokensByIdentity = new HashMap<>();
@@ -45,6 +51,11 @@ public final class AuthKeyService {
     }
 
     AuthKeyService(long ttlMillis, LongSupplier ticker, SecureRandom secureRandom, int maxActiveTokens) {
+        this(ttlMillis, ticker, secureRandom, maxActiveTokens, Clock.systemUTC());
+    }
+
+    AuthKeyService(long ttlMillis, LongSupplier ticker, SecureRandom secureRandom,
+                   int maxActiveTokens, Clock clock) {
         if (ttlMillis <= 0L) {
             throw new IllegalArgumentException("ttlMillis must be greater than zero");
         }
@@ -53,46 +64,62 @@ public final class AuthKeyService {
         }
         this.ttlNanos = TimeUnit.MILLISECONDS.toNanos(ttlMillis);
         this.ticker = Objects.requireNonNull(ticker, "ticker");
+        this.clock = Objects.requireNonNull(clock, "clock");
         this.secureRandom = Objects.requireNonNull(secureRandom, "secureRandom");
         this.maxActiveTokens = maxActiveTokens;
+        byte[] secret = new byte[TOKEN_BYTES];
+        secureRandom.nextBytes(secret);
+        this.signingKey = new SecretKeySpec(secret, "HmacSHA256");
     }
 
     public String issue(String userId, String deviceId) {
         validateIdentity(userId, deviceId);
         ClientIdentity identity = new ClientIdentity(userId, deviceId);
 
-        for (int attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt++) {
-            byte[] bytes = new byte[TOKEN_BYTES];
-            secureRandom.nextBytes(bytes);
-            String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-            byte[] tokenHash = hash(token);
+        byte[] nonce = new byte[TOKEN_BYTES];
+        secureRandom.nextBytes(nonce);
 
-            synchronized (lock) {
-                long now = ticker.getAsLong();
-                evictExpired(now);
-                TokenRecord previous = tokensByIdentity.get(identity);
-                if (previous != null && MessageDigest.isEqual(previous.tokenHash, tokenHash)) {
-                    continue;
-                }
-                if (previous == null && tokensByIdentity.size() >= maxActiveTokens) {
-                    throw new IllegalStateException("active authentication token capacity exceeded");
-                }
-
-                TokenRecord replacement = new TokenRecord(
-                    identity,
-                    tokenHash,
-                    now + ttlNanos,
-                    recordSequence++
-                );
-                if (previous != null) {
-                    recordsByExpiry.remove(previous);
-                }
-                tokensByIdentity.put(identity, replacement);
-                recordsByExpiry.add(replacement);
-                return token;
+        synchronized (lock) {
+            long now = ticker.getAsLong();
+            evictExpired(now);
+            TokenRecord previous = tokensByIdentity.get(identity);
+            if (previous == null && tokensByIdentity.size() >= maxActiveTokens) {
+                throw new IllegalStateException("active authentication token capacity exceeded");
             }
+
+            // Sequence remains unique even across consumption, clock rollback, or repeated nonces.
+            long sequence = recordSequence++;
+            String token = generateToken(userId, deviceId, clock.millis(), sequence, nonce);
+            TokenRecord replacement = new TokenRecord(identity, hash(token), now + ttlNanos, sequence);
+            if (previous != null) {
+                recordsByExpiry.remove(previous);
+            }
+            tokensByIdentity.put(identity, replacement);
+            recordsByExpiry.add(replacement);
+            return token;
         }
-        throw new IllegalStateException("could not generate a unique authentication token");
+    }
+
+    private String generateToken(String userId, String deviceId, long issuedAtMillis,
+                                 long sequence, byte[] nonce) {
+        byte[] userBytes = userId.getBytes(StandardCharsets.UTF_8);
+        byte[] deviceBytes = deviceId.getBytes(StandardCharsets.UTF_8);
+        // Length prefixes distinguish identities such as ("ab", "c") and ("a", "bc").
+        byte[] payload = ByteBuffer.allocate(2 * Integer.BYTES + userBytes.length + deviceBytes.length
+                + 2 * Long.BYTES + nonce.length)
+            .putInt(userBytes.length).put(userBytes)
+            .putInt(deviceBytes.length).put(deviceBytes)
+            .putLong(issuedAtMillis)
+            .putLong(sequence)
+            .put(nonce)
+            .array();
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(signingKey);
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(payload));
+        } catch (GeneralSecurityException exception) {
+            throw new IllegalStateException("HmacSHA256 is not available", exception);
+        }
     }
 
     public boolean consume(String userId, String deviceId, String token) {

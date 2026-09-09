@@ -3,9 +3,14 @@ package com.aries.kb.auth;
 import org.junit.Test;
 
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -188,15 +193,134 @@ public class AuthKeyServiceTests {
     }
 
     @Test
-    public void retriesWhenTheRandomSourceRepeatsThePreviousToken() {
-        RepeatingThenChangingSecureRandom random = new RepeatingThenChangingSecureRandom();
-        AuthKeyService service = new AuthKeyService(10_000L, System::nanoTime, random);
+    public void includesUserIdInTheGeneratedKey() {
+        AuthKeyService first = deterministicService();
+        AuthKeyService second = deterministicService();
 
-        String first = service.issue("user-repeat-rng", "device-1");
-        String second = service.issue("user-repeat-rng", "device-1");
+        assertNotEquals(first.issue("user-a", "device-1"), second.issue("user-b", "device-1"));
+    }
 
+    @Test
+    public void includesDeviceIdInTheGeneratedKey() {
+        AuthKeyService first = deterministicService();
+        AuthKeyService second = deterministicService();
+
+        assertNotEquals(first.issue("user-1", "device-a"), second.issue("user-1", "device-b"));
+    }
+
+    @Test
+    public void preservesIdentityBoundariesInTheGeneratedKey() {
+        AuthKeyService first = deterministicService();
+        AuthKeyService second = deterministicService();
+
+        assertNotEquals(first.issue("ab", "c"), second.issue("a", "bc"));
+    }
+
+    @Test
+    public void includesIssuanceTimeEvenWhenIdentitySecretNonceAndSequenceMatch() {
+        AuthKeyService first = deterministicService(1_700_000_000_000L);
+        AuthKeyService oneMillisecondLater = deterministicService(1_700_000_000_001L);
+        AuthKeyService tenSecondsLater = deterministicService(1_700_000_010_000L);
+
+        String firstKey = first.issue("user-1", "device-1");
+        assertNotEquals(firstKey, oneMillisecondLater.issue("user-1", "device-1"));
+        assertNotEquals(firstKey, tenSecondsLater.issue("user-1", "device-1"));
+    }
+
+    @Test
+    public void differentServerSecretsProduceDifferentKeysForTheSamePayload() {
+        AuthKeyService first = deterministicService(new FixedSecretAndNonceRandom((byte) 0, (byte) 0));
+        AuthKeyService second = deterministicService(new FixedSecretAndNonceRandom((byte) 1, (byte) 0));
+
+        assertNotEquals(first.issue("user-1", "device-1"), second.issue("user-1", "device-1"));
+    }
+
+    @Test
+    public void nonceChangesTheKeyEvenWhenIdentityTimeSequenceAndSecretMatch() {
+        AuthKeyService first = deterministicService(new FixedSecretAndNonceRandom((byte) 0, (byte) 0));
+        AuthKeyService second = deterministicService(new FixedSecretAndNonceRandom((byte) 0, (byte) 1));
+
+        assertNotEquals(first.issue("user-1", "device-1"), second.issue("user-1", "device-1"));
+    }
+
+    @Test
+    public void threeConsumedKeysStayDistinctEvenWhenTimeAndRandomnessRepeat() {
+        AuthKeyService service = deterministicService();
+        List<String> usedKeys = new ArrayList<>();
+
+        for (int login = 0; login < 3; login++) {
+            String key = service.issue("user-repeat-rng", "device-1");
+            for (String previous : usedKeys) {
+                assertNotEquals(previous, key);
+                assertFalse(service.consume("user-repeat-rng", "device-1", previous));
+            }
+            assertTrue(service.consume("user-repeat-rng", "device-1", key));
+            usedKeys.add(key);
+        }
+    }
+
+    @Test
+    public void replacementDiffersEvenWhenTimeAndRandomnessRepeat() {
+        AuthKeyService service = deterministicService();
+
+        String previous = service.issue("user-1", "device-1");
+        String replacement = service.issue("user-1", "device-1");
+
+        assertNotEquals(previous, replacement);
+        assertFalse(service.consume("user-1", "device-1", previous));
+        assertTrue(service.consume("user-1", "device-1", replacement));
+    }
+
+    @Test
+    public void monotonicTimeExpiresKeysEvenWhenTheIssuanceClockIsFrozen() {
+        MutableTicker ticker = new MutableTicker();
+        AuthKeyService service = new AuthKeyService(10_000L, ticker, new ConstantSecureRandom(),
+            100, Clock.fixed(Instant.ofEpochMilli(1_700_000_000_000L), ZoneOffset.UTC));
+        String first = service.issue("user-1", "device-1");
+
+        ticker.advanceMillis(10_000L);
+        assertFalse(service.consume("user-1", "device-1", first));
+
+        String second = service.issue("user-1", "device-1");
         assertNotEquals(first, second);
-        assertEquals(3, random.calls);
+        assertTrue(service.consume("user-1", "device-1", second));
+    }
+
+    @Test(timeout = 5_000L)
+    public void concurrentIssuanceProducesDistinctKeysAndLeavesOnlyOneUsable() throws Exception {
+        AuthKeyService service = deterministicService();
+        int requestCount = 16;
+        ExecutorService executor = Executors.newFixedThreadPool(requestCount);
+        CountDownLatch ready = new CountDownLatch(requestCount);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<String>> results = new ArrayList<>();
+
+        try {
+            for (int i = 0; i < requestCount; i++) {
+                results.add(executor.submit(() -> {
+                    ready.countDown();
+                    start.await();
+                    return service.issue("user-concurrent-issue", "device-1");
+                }));
+            }
+            assertTrue(ready.await(2L, TimeUnit.SECONDS));
+            start.countDown();
+
+            Set<String> keys = new HashSet<>();
+            for (Future<String> result : results) {
+                assertTrue("Every concurrent issuance must be unique", keys.add(result.get(2L, TimeUnit.SECONDS)));
+            }
+            int validKeys = 0;
+            for (String key : keys) {
+                if (service.consume("user-concurrent-issue", "device-1", key)) {
+                    validKeys++;
+                }
+            }
+            assertEquals(1, validKeys);
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+        }
     }
 
     @Test(timeout = 5_000L)
@@ -247,13 +371,41 @@ public class AuthKeyServiceTests {
         }
     }
 
-    private static final class RepeatingThenChangingSecureRandom extends SecureRandom {
-        private int calls;
+    private AuthKeyService deterministicService() {
+        return deterministicService(1_700_000_000_000L);
+    }
+
+    private AuthKeyService deterministicService(long issuedAtMillis) {
+        return new AuthKeyService(10_000L, new MutableTicker(), new ConstantSecureRandom(),
+            100, Clock.fixed(Instant.ofEpochMilli(issuedAtMillis), ZoneOffset.UTC));
+    }
+
+    private AuthKeyService deterministicService(SecureRandom random) {
+        return new AuthKeyService(10_000L, new MutableTicker(), random,
+            100, Clock.fixed(Instant.ofEpochMilli(1_700_000_000_000L), ZoneOffset.UTC));
+    }
+
+    private static final class FixedSecretAndNonceRandom extends SecureRandom {
+        private final byte secret;
+        private final byte nonce;
+        private boolean secretGenerated;
+
+        private FixedSecretAndNonceRandom(byte secret, byte nonce) {
+            this.secret = secret;
+            this.nonce = nonce;
+        }
 
         @Override
         public void nextBytes(byte[] bytes) {
-            calls++;
-            Arrays.fill(bytes, calls <= 2 ? (byte) 0 : (byte) 1);
+            Arrays.fill(bytes, secretGenerated ? nonce : secret);
+            secretGenerated = true;
+        }
+    }
+
+    private static final class ConstantSecureRandom extends SecureRandom {
+        @Override
+        public void nextBytes(byte[] bytes) {
+            Arrays.fill(bytes, (byte) 0);
         }
     }
 }

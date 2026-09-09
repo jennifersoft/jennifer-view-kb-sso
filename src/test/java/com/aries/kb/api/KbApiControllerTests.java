@@ -42,6 +42,22 @@ public class KbApiControllerTests {
     }
 
     @Test
+    public void identifiesTheLoadedVersionAndEachIssuanceWithoutExposingTheKeyInHeaders() {
+        KbApiController controller = new KbApiController();
+        ResponseEntity<String> first = controller.createAuthKey("user-diagnostics", "device-1");
+        ResponseEntity<String> second = controller.createAuthKey("user-diagnostics", "device-1");
+
+        assertEquals("3.0.0", first.getHeaders().getFirst("X-KB-SSO-Version"));
+        String firstId = first.getHeaders().getFirst("X-KB-SSO-Issuance-Id");
+        String secondId = second.getHeaders().getFirst("X-KB-SSO-Issuance-Id");
+        assertNotNull(firstId);
+        assertNotNull(secondId);
+        assertNotEquals(firstId, secondId);
+        assertNotEquals(first.getBody(), firstId);
+        assertNotEquals(second.getBody(), secondId);
+    }
+
+    @Test
     public void rejectsAnOversizedIdentity() {
         KbApiController controller = new KbApiController();
         String oversized = new String(new char[257]).replace('\0', 'u');
