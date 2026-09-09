@@ -41,10 +41,12 @@ public class KbSsoFlowTests {
     public void getApiResponseIsPassedThroughTheLoginUrlToTheRealPreHandle() throws Exception {
         String key = issue(USER, DEVICE);
         assertEquals(key, KbLoginAdapter.Companion.getAUTH_KEYS().get(AuthKeyGenerator.identityKey(USER, DEVICE)));
-        http.perform(get(loginUrl(USER, DEVICE, encode(key)))).andExpect(status().isOk()).andExpect(content().string(USER));
+        http.perform(get(loginUrl(USER, DEVICE, encode(key)))).andExpect(status().isOk()).andExpect(content().string("guest"));
         assertEquals(1, login.calls);
         assertEquals(key, login.receivedKey);
-        assertEquals(USER, login.user.id);
+        assertEquals(USER, login.receivedUserId);
+        assertEquals(DEVICE, login.receivedDeviceId);
+        assertEquals("guest", login.user.id);
         assertEquals("guest", login.user.password);
     }
 
@@ -67,8 +69,10 @@ public class KbSsoFlowTests {
         String user = "은행+사용자 /=%";
         String device = "단말 +/=%";
         String key = issue(user, device);
-        http.perform(get(loginUrl(user, device, encode(key)))).andExpect(status().isOk()).andExpect(content().string(user));
-        assertEquals(user, login.user.id);
+        http.perform(get(loginUrl(user, device, encode(key)))).andExpect(status().isOk()).andExpect(content().string("guest"));
+        assertEquals(user, login.receivedUserId);
+        assertEquals(device, login.receivedDeviceId);
+        assertEquals("guest", login.user.id);
     }
 
     @Test
@@ -159,7 +163,7 @@ public class KbSsoFlowTests {
         String key = http.perform(get(uri)).andExpect(status().isOk())
             .andExpect(header().string("Cache-Control", "no-store"))
             .andExpect(header().string("X-KB-SSO-Version", "3.0.0"))
-            .andExpect(header().string("X-KB-SSO-Build", "v2-memory-1"))
+            .andExpect(header().string("X-KB-SSO-Build", "v2-memory-2"))
             .andReturn().getResponse().getContentAsString();
         assertTrue(key.matches("[A-Za-z0-9_-]{43}"));
         return key;
@@ -180,12 +184,16 @@ public class KbSsoFlowTests {
         private final KbLoginAdapter adapter = new KbLoginAdapter();
         private int calls;
         private String receivedKey;
+        private String receivedUserId;
+        private String receivedDeviceId;
         private UserData user;
 
         @GetMapping(value = "/login/sso", produces = "text/plain;charset=UTF-8")
         public ResponseEntity<String> login(HttpServletRequest request) {
             calls++;
             receivedKey = request.getParameter("auth_key");
+            receivedUserId = request.getParameter("user_id");
+            receivedDeviceId = request.getParameter("device_id");
             user = adapter.preHandle(request);
             if (user == null) return ResponseEntity.status(401).build();
             request.getSession().setAttribute("test-user", user.id);

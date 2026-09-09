@@ -1,14 +1,18 @@
 package com.aries.kb.login;
 
 import com.aries.extension.data.UserData;
+import com.aries.extension.util.PropertyUtil;
 import com.aries.kb.api.KbApiController;
 import com.aries.kb.auth.AuthKeyGenerator;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mockStatic;
 
 public class KbLoginAdapterTests {
 
@@ -22,8 +26,29 @@ public class KbLoginAdapterTests {
         UserData replayAttempt = adapter.preHandle(request);
 
         assertNotNull(firstAttempt);
-        assertEquals("user-1", firstAttempt.id);
+        assertEquals("guest", firstAttempt.id);
+        assertEquals("guest", firstAttempt.password);
         assertNotNull("Jennifer may validate the same login more than once within 10 seconds", replayAttempt);
+    }
+
+    @Test
+    public void usesConfiguredJenniferCredentialsAfterValidatingTheCustomerIdentity() {
+        try (MockedStatic<PropertyUtil> options = mockStatic(PropertyUtil.class, CALLS_REAL_METHODS)) {
+            options.when(() -> PropertyUtil.getValue("kb_login", "KB_JENNIFER_ID", "guest"))
+                .thenReturn("jennifer-reader");
+            options.when(() -> PropertyUtil.getValue("kb_login", "KB_JENNIFER_PASSWORD", "guest"))
+                .thenReturn("test-configured-password");
+            String key = new KbApiController().createAuthKey("customer-user", "customer-device").getBody();
+            KbLoginAdapter adapter = new KbLoginAdapter();
+
+            UserData result = adapter.preHandle(loginRequest("customer-user", "customer-device", key));
+
+            assertNotNull(result);
+            assertEquals("jennifer-reader", result.id);
+            assertEquals("test-configured-password", result.password);
+            assertNull("The configured login account must not replace the identity bound to the key",
+                adapter.preHandle(loginRequest("jennifer-reader", "customer-device", key)));
+        }
     }
 
     @Test

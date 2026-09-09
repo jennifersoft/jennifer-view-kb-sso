@@ -11,7 +11,7 @@ import java.util.HexFormat;
 /** Diagnostics identify keys by a one-way tag, never by their original value. */
 public final class AuthDiagnostics {
     public static final String VERSION = "3.0.0";
-    public static final String BUILD = "v2-memory-1";
+    public static final String BUILD = "v2-memory-2";
 
     private AuthDiagnostics() { }
 

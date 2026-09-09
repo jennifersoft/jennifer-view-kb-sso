@@ -69,8 +69,9 @@ class KbLoginAdapter : SSOLoginHandler {
             // Preserve v2 lookup/compare semantics: validation does not consume or renew the key.
             LogUtil.info("LOGIN key_verified=true jennifer_auth=pending $details remaining_ms=${AUTH_KEYS.remainingMillis(cacheKey)}")
         }
+        // Customer identity binds the auth key; Jennifer authenticates the configured account.
         return UserData(
-            userId,
+            PropertyUtil.getValue(ADAPTER_ID, "KB_JENNIFER_ID", "guest"),
             PropertyUtil.getValue(ADAPTER_ID, "KB_JENNIFER_PASSWORD", "guest")
         )
     }

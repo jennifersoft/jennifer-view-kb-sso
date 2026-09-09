@@ -42,9 +42,9 @@ public class KbSsoHttpTests {
         ResponseEntity<String> api = client.getForEntity(uri("/plugin/kbapi/authkey?" + params
             + "&token=test-plugin-api-credential"), String.class);
         assertEquals(200, api.getStatusCodeValue());
-        assertEquals("v2-memory-1", api.getHeaders().getFirst("X-KB-SSO-Build"));
+        assertEquals("v2-memory-2", api.getHeaders().getFirst("X-KB-SSO-Build"));
         assertTrue(api.getBody().matches("[A-Za-z0-9_-]{43}"));
-        assertEquals(user, client.getForObject(uri("/login/sso?" + params + "&auth_key=" + encode(api.getBody())), String.class));
+        assertEquals("guest", client.getForObject(uri("/login/sso?" + params + "&auth_key=" + encode(api.getBody())), String.class));
 
         byte[] bytes = new byte[16];
         Arrays.fill(bytes, (byte) 0xff);
@@ -52,8 +52,8 @@ public class KbSsoHttpTests {
         String raw = Base64.getEncoder().encodeToString(bytes);
         String legacyApiResponse = encode(raw);
         KbLoginAdapter.Companion.getAUTH_KEYS().put(AuthKeyGenerator.identityKey(user, device), legacyApiResponse, 10000L);
-        assertEquals(user, client.getForObject(uri("/login/sso?" + params + "&auth_key=" + legacyApiResponse), String.class));
-        assertEquals(user, client.getForObject(uri("/login/sso?" + params + "&auth_key=" + encode(legacyApiResponse)), String.class));
+        assertEquals("guest", client.getForObject(uri("/login/sso?" + params + "&auth_key=" + legacyApiResponse), String.class));
+        assertEquals("guest", client.getForObject(uri("/login/sso?" + params + "&auth_key=" + encode(legacyApiResponse)), String.class));
     }
 
     private URI uri(String path) { return URI.create("http://127.0.0.1:" + port + path); }

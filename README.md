@@ -29,8 +29,10 @@ v2와 같이 API가 `KbLoginAdapter.AUTH_KEYS`에 인증키를 저장하고 로�
  4. 경로에 파일선택을 해서 업로드 하지 말고, 절대 경로를 입력해야 함 (dist/kb-sso_jennifer-3.0.0.jar)
  5. 클래스 란에는 com.aries.kb.login.KbLoginAdapter를 입력
  6. 테이블에 설정이 추가되면, 해당 설정 로우를 선택하고, 옵션을 클릭
- 7. 사용자 아이디는 인증키 발급 API 호출시 user_id 매개변수의 값인 ${KB_사용자_아이디}로 지정됨
- 8. KB_JENNIFER_PASSWORD 옵션 추가 (기본값은 guest, 위와 동일)
+ 7. KB_JENNIFER_ID 옵션에 실제 제니퍼 로그인 계정 아이디를 지정 (기본값은 guest)
+ 8. KB_JENNIFER_PASSWORD 옵션에 해당 계정의 비밀번호를 지정 (기본값은 guest)
+
+두 옵션을 생략하면 제니퍼에 `guest` / `guest`로 로그인을 요청한다. 요청의 `user_id`와 `device_id`는 인증키 발급·검증에만 사용하며, 제니퍼 로그인 계정으로 전달하지 않는다. API 발급 요청과 로그인 요청에는 동일한 고객 사용자·디바이스 아이디를 전달해야 한다.
 
 ### URL로 제니퍼 로그인하기
 
@@ -50,7 +52,7 @@ API 실험실의 `kb_plugin`과 로그인 어댑터의 `kb_login`에서 사용�
 새 버전의 발급 API 응답에는 다음 헤더가 포함된다.
 
 - `X-KB-SSO-Version: 3.0.0`
-- `X-KB-SSO-Build: v2-memory-1`
+- `X-KB-SSO-Build: v2-memory-2`
 - `X-KB-SSO-Issuance-Id`: 캐시 사용 여부와 무관하게 호출마다 생성되는 응답 추적 ID
 - `X-KB-SSO-Remaining-Millis`: 캐시 키의 남은 유효시간
 - `Cache-Control: no-store`, `Pragma: no-cache`
