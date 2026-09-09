@@ -4,14 +4,12 @@ import com.aries.extension.data.UserData
 import com.aries.extension.handler.SSOLoginHandler
 import com.aries.extension.util.LogUtil
 import com.aries.extension.util.PropertyUtil
-import com.aries.kb.util.SelfExpiringHashMap
-import java.net.URLDecoder
+import com.aries.kb.auth.AuthKeyService
 import javax.servlet.http.HttpServletRequest
 
 class KbLoginAdapter : SSOLoginHandler {
     companion object {
         const val ADAPTER_ID = "kb_login"
-        val AUTH_KEYS = SelfExpiringHashMap<String, String>()
     }
 
     override fun preHandle(request: HttpServletRequest): UserData? {
@@ -24,16 +22,9 @@ class KbLoginAdapter : SSOLoginHandler {
             return null
         }
 
-        val mapKey = AUTH_KEYS[userId + deviceId]
-        if (mapKey == null) {
-            LogUtil.error("NOT_EXIST_KEY \"$userId:$deviceId (${request.remoteAddr})\"")
+        if (!AuthKeyService.shared().consume(userId, deviceId, authKey)) {
+            LogUtil.error("INVALID_OR_EXPIRED_KEY \"$userId:$deviceId (${request.remoteAddr})\"")
             return null
-        } else {
-            val cachedAuthKey = URLDecoder.decode(mapKey, "UTF-8")
-            if (authKey != cachedAuthKey) {
-                LogUtil.error("INVALID_KEY \"$userId:$deviceId (${request.remoteAddr})\" \"$authKey=$cachedAuthKey\"")
-                return null
-            }
         }
 
         LogUtil.info("LOGIN \"$userId:$deviceId (${request.remoteAddr})\"")
