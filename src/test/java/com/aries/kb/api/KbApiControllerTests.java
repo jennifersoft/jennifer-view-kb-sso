@@ -24,13 +24,13 @@ public class KbApiControllerTests {
     }
 
     @Test
-    public void returnsDifferentTokensForRepeatedRequests() {
+    public void returnsTheSameKeyForRepeatedRequestsWithinTenSeconds() {
         KbApiController controller = new KbApiController();
 
         String first = controller.createAuthKey("user-repeat", "device-1").getBody();
         String second = controller.createAuthKey("user-repeat", "device-1").getBody();
 
-        assertNotEquals(first, second);
+        assertEquals(first, second);
     }
 
     @Test

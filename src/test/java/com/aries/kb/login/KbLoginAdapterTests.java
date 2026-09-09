@@ -2,6 +2,7 @@ package com.aries.kb.login;
 
 import com.aries.extension.data.UserData;
 import com.aries.kb.api.KbApiController;
+import com.aries.kb.auth.AuthKeyGenerator;
 import org.junit.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 
@@ -12,7 +13,7 @@ import static org.junit.Assert.assertEquals;
 public class KbLoginAdapterTests {
 
     @Test
-    public void acceptsAnIssuedTokenOnceAndRejectsItsReplay() {
+    public void acceptsRepeatedValidationOfTheCurrentKeyWithinItsLifetimeLikeV2() {
         String token = new KbApiController().createAuthKey("user-1", "device-1").getBody();
         KbLoginAdapter adapter = new KbLoginAdapter();
         MockHttpServletRequest request = loginRequest("user-1", "device-1", token);
@@ -22,7 +23,7 @@ public class KbLoginAdapterTests {
 
         assertNotNull(firstAttempt);
         assertEquals("user-1", firstAttempt.id);
-        assertNull(replayAttempt);
+        assertNotNull("Jennifer may validate the same login more than once within 10 seconds", replayAttempt);
     }
 
     @Test
@@ -56,6 +57,8 @@ public class KbLoginAdapterTests {
     public void replacementTokenInvalidatesThePreviousToken() {
         KbApiController controller = new KbApiController();
         String previous = controller.createAuthKey("user-replacement", "device-1").getBody();
+        KbLoginAdapter.Companion.getAUTH_KEYS().put(
+            AuthKeyGenerator.identityKey("user-replacement", "device-1"), previous, 0L);
         String replacement = controller.createAuthKey("user-replacement", "device-1").getBody();
         KbLoginAdapter adapter = new KbLoginAdapter();
 
