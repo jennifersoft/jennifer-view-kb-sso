@@ -3,6 +3,8 @@ package com.aries.kb.api
 import com.aries.extension.starter.PluginController
 import com.aries.kb.auth.AuthKeyService
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.http.CacheControl
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -17,7 +19,10 @@ class KbApiController @Autowired constructor() : PluginController() {
         @RequestParam(required = true) device_id: String
     ): ResponseEntity<String> {
         return try {
-            ResponseEntity(AuthKeyService.shared().issue(user_id, device_id), HttpStatus.OK)
+            ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.PRAGMA, "no-cache")
+                .body(AuthKeyService.shared().issue(user_id, device_id))
         } catch (exception: IllegalArgumentException) {
             ResponseEntity(HttpStatus.BAD_REQUEST)
         } catch (exception: IllegalStateException) {

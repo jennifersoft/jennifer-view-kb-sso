@@ -1,6 +1,7 @@
 package com.aries.kb.api;
 
 import org.junit.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -30,6 +31,14 @@ public class KbApiControllerTests {
         String second = controller.createAuthKey("user-repeat", "device-1").getBody();
 
         assertNotEquals(first, second);
+    }
+
+    @Test
+    public void preventsAuthenticationTokenResponsesFromBeingCached() {
+        ResponseEntity<String> response = new KbApiController().createAuthKey("user-cache", "device-1");
+
+        assertEquals("no-store", response.getHeaders().getCacheControl());
+        assertEquals("no-cache", response.getHeaders().getFirst(HttpHeaders.PRAGMA));
     }
 
     @Test
